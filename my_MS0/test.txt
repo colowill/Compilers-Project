@@ -1,0 +1,4 @@
+fun main() void {
+int x;
+x = 10;
+}
