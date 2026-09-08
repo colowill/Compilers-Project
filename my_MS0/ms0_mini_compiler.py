@@ -3,6 +3,7 @@ from antlr4 import *
 from MiniLexer import MiniLexer
 from MiniParser import MiniParser
 from mini_ast_visitor import MiniToASTVisitor
+from pretty_print_ast_visitor import PPASTVisitor
 
 def main(argv):
     input_stream = FileStream(argv[1])  # create a stream of characters from the input file (e.g., test.mini)
@@ -23,9 +24,9 @@ def main(argv):
 
         """Pretty print AST.
         Milestone 0: Implement this visitor"""
-        #pp_visitor = PPASTVisitor()
-        #pp_str = mini_ast.accept(pp_visitor)
-        #print(pp_str)
+        pp_visitor = PPASTVisitor()
+        pp_str = mini_ast.accept(pp_visitor)
+        print(pp_str)
 
 
 if __name__ == '__main__':
