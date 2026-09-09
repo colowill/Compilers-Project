@@ -1,4 +1,20 @@
-fun main() void {
-int x;
-x = 10;
+struct A
+{
+    int i;
+    bool b;
+};
+
+int i, j;
+struct A a;
+
+fun main() int
+{
+    int max, min;
+    max = 3;
+    min = a.i + 3 / 2 - max;
+    if (min < 0)
+    {
+        min = min + 10;
+    }
+    return 0;
 }
