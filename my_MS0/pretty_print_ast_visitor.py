@@ -24,7 +24,8 @@ class PPASTVisitor(mini_ast.ASTVisitor):
         indent_str = "\t"*indent
         type_str = declaration.type.accept(self)
         name_str = declaration.name.accept(self)
-        return f"{indent_str}Declaration: {type_str} {name_str}\n"
+        result = f"{indent_str}Declaration: {type_str} {name_str}\n"
+        return result
 
     def visit_type_declaration(self, type_declaration: program_ast.TypeDeclaration, indent):
         return "foo"
@@ -42,7 +43,7 @@ class PPASTVisitor(mini_ast.ASTVisitor):
         return "bool"
 
     def visit_struct_type(self, struct_type: type_ast.StructType):
-        pass
+        return struct_type.name.accept(self)
     
     def visit_return_type_real(self, return_type_real: type_ast.ReturnTypeReal):
         pass
@@ -50,8 +51,8 @@ class PPASTVisitor(mini_ast.ASTVisitor):
     def visit_return_type_void(self, return_type_void) -> mini_ast.Any:
         pass
 
-    def visit_statement(self, statement: statement_ast.Statement):
-        pass
+    #def visit_statement(self, statement: statement_ast.Statement):
+    #    pass
         
     def visit_assignment_statement(self, assignment_statement: statement_ast.AssignmentStatement):
         pass
@@ -83,8 +84,8 @@ class PPASTVisitor(mini_ast.ASTVisitor):
     def visit_return_statement(self, return_statement: statement_ast.ReturnStatement):
         pass
 
-    def visit_expression(self, expression: expression_ast.Expression):
-        pass
+    #def visit_expression(self, expression: expression_ast.Expression):
+    #    pass
 
     def visit_dot_expression(self, dot_expression: expression_ast.DotExpression):
         pass
@@ -119,8 +120,8 @@ class PPASTVisitor(mini_ast.ASTVisitor):
     def visit_binary_expression(self, binary_expression: expression_ast.BinaryExpression):
         pass
 
-    def visit_lvalue(self, lvalue: lvalue_ast.LValue):
-        pass
+    #def visit_lvalue(self, lvalue: lvalue_ast.LValue):
+    #    pass
         
     def visit_lvalue_dot(self, lvalue_dot: lvalue_ast.LValueDot):
         pass
