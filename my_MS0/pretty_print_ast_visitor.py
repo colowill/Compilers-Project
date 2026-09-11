@@ -60,7 +60,7 @@ class PPASTVisitor(mini_ast.ASTVisitor):
         result += f"{indent_1}Body\n"
         # search through statement types to determine which one it is
         for statement in function.body:
-            
+            result += self.visit_statement(statement, indent+2)
                                 
         return result
    
@@ -141,72 +141,180 @@ class PPASTVisitor(mini_ast.ASTVisitor):
         
         result = f"{indent_0}Block\n"
         for stmt in block_statement.statements:
-            result += stmt.accept(self) if hasattr(stmt, 'accept') else str(stmt)
+            result += self.visit_statement(stmt, indent + 1)
             
         return result
 
-    def visit_while_statement(self, while_statement: statement_ast.WhileStatement):
-        pass
-
-    def visit_delete_statement(self, delete_statement: statement_ast.DeleteStatement):
-        pass
-
-    def visit_invocation_statement(self, invocation_statement: statement_ast.InvocationStatement):
-        pass
-
-    def visit_println_statement(self, println_statement: statement_ast.PrintLnStatement):
-        pass
-
-    def visit_print_statement(self, print_statement: statement_ast.PrintStatement):
-        pass
-
-    def visit_return_empty_statement(self, return_empty_statement: statement_ast.ReturnEmptyStatement):
-        pass
-
-    def visit_return_statement(self, return_statement: statement_ast.ReturnStatement):
-        pass
-
-    #def visit_expression(self, expression: expression_ast.Expression):
-    #    pass
-
-    def visit_dot_expression(self, dot_expression: expression_ast.DotExpression):
-        pass
-
-    def visit_false_expression(self, false_expression: expression_ast.FalseExpression):
-        pass
-
-    def visit_true_expression(self, true_expression: expression_ast.TrueExpression):
-        pass
-
-    def visit_identifier_expression(self, identifier_expression: expression_ast.IdentifierExpression):
-        return identifier_expression.id
-
-    def visit_new_expression(self, new_expression: expression_ast.NewExpression):
-        pass
-
-    def visit_null_expression(self, null_expression: expression_ast.NullExpression):
-        pass
-
-    def visit_read_expression(self, read_expression: expression_ast.ReadExpression):
-        pass
-
-    def visit_integer_expression(self, integer_expression: expression_ast.IntegerExpression):
-        pass
-
-    def visit_invocation_expression(self, invocation_expression: expression_ast.InvocationExpression):
-        pass
-
-    def visit_unary_expression(self, unary_expression: expression_ast.UnaryExpression):
-        pass
-
-    def visit_binary_expression(self, binary_expression: expression_ast.BinaryExpression):
-        pass
-
-    #def visit_lvalue(self, lvalue: lvalue_ast.LValue):
-    #    pass
+    def visit_while_statement(self, while_statement: statement_ast.WhileStatement, indent: int) -> str:
+        indent_0 = "\t" * indent
+        indent_1 = "\t" * (indent + 1)
         
-    def visit_lvalue_dot(self, lvalue_dot: lvalue_ast.LValueDot):
-        pass
+        result = f"{indent_0}While\n"
+        result += f"{indent_1}Guard\n"
+        result += self.visit_expression(while_statement.guard, indent + 2)
+        
+        result += f"{indent_1}Body\n"
+        if isinstance(while_statement.body, statement_ast.BlockStatement):
+            result += self.visit_block_statement(while_statement.body, indent + 2)
+        else:
+            result += self.visit_statement(while_statement.body, indent + 2)
+            
+        return result
 
-    def visit_lvalue_id(self, lvalue_id: lvalue_ast.LValueID):
-        pass
+    def visit_delete_statement(self, delete_statement: statement_ast.DeleteStatement, indent: int) -> str:
+        indent_0 = "\t" * indent
+        result = f"{indent_0}Delete\n"
+        result += self.visit_expression(delete_statement.expression, indent + 1)
+        return result
+
+    def visit_invocation_statement(self, invocation_statement: statement_ast.InvocationStatement, indent: int) -> str:
+        indent_0 = "\t" * indent
+        result = f"{indent_0}InvocationStatement\n"
+        result += self.visit_expression(invocation_statement.expression, indent + 1)
+        return result
+
+    def visit_println_statement(self, println_statement: statement_ast.PrintLnStatement, indent: int) -> str:
+        indent_0 = "\t" * indent
+        result = f"{indent_0}PrintLn\n"
+        result += self.visit_expression(println_statement.expression, indent + 1)
+        return result
+
+    def visit_print_statement(self, print_statement: statement_ast.PrintStatement, indent: int) -> str:
+        indent_0 = "\t" * indent
+        result = f"{indent_0}Print\n"
+        result += self.visit_expression(print_statement.expression, indent + 1)
+        return result
+
+    def visit_return_empty_statement(self, return_empty_statement: statement_ast.ReturnEmptyStatement, indent: int) -> str:
+        indent_0 = "\t" * indent
+        return f"{indent_0}Return\n"
+
+    def visit_return_statement(self, return_statement: statement_ast.ReturnStatement, indent: int) -> str:
+        indent_0 = "\t" * indent
+        result = f"{indent_0}Return\n"
+        if return_statement.expression:
+            result += self.visit_expression(return_statement.expression, indent + 1)
+        return result
+
+    def visit_expression(self, expression: expression_ast.Expression, indent: int) -> str:
+        if isinstance(expression, expression_ast.BinaryExpression):
+            return self.visit_binary_expression(expression, indent)
+        elif isinstance(expression, expression_ast.UnaryExpression):
+            return self.visit_unary_expression(expression, indent)
+        elif isinstance(expression, expression_ast.IntegerExpression):
+            return self.visit_integer_expression(expression, indent)
+        elif isinstance(expression, expression_ast.IdentifierExpression):
+            return self.visit_identifier_expression(expression, indent)
+        elif isinstance(expression, expression_ast.DotExpression):
+            return self.visit_dot_expression(expression, indent)
+        elif isinstance(expression, expression_ast.InvocationExpression):
+            return self.visit_invocation_expression(expression, indent)
+        elif isinstance(expression, expression_ast.NewExpression):
+            return self.visit_new_expression(expression, indent)
+        elif isinstance(expression, expression_ast.TrueExpression):
+            return self.visit_true_expression(expression, indent)
+        elif isinstance(expression, expression_ast.FalseExpression):
+            return self.visit_false_expression(expression, indent)
+        elif isinstance(expression, expression_ast.NullExpression):
+            return self.visit_null_expression(expression, indent)
+        elif isinstance(expression, expression_ast.ReadExpression):
+            return self.visit_read_expression(expression, indent)
+        return ""
+
+    def visit_dot_expression(self, dot_expression: expression_ast.DotExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        indent_1 = "\t" * (indent + 1)
+        result = f"{indent_0}DotExpression\n"
+        result += f"{indent_1}Left\n"
+        result += self.visit_expression(dot_expression.left, indent + 2)
+        id_str = dot_expression.id.id if hasattr(dot_expression.id, 'id') else dot_expression.id
+        result += f"{indent_1}Id: {id_str}\n"
+        return result
+
+    def visit_false_expression(self, false_expression: expression_ast.FalseExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        return f"{indent_0}False\n"
+
+    def visit_true_expression(self, true_expression: expression_ast.TrueExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        return f"{indent_0}True\n"
+
+    def visit_identifier_expression(self, identifier_expression: expression_ast.IdentifierExpression, indent: int = 0) -> str:
+        # Handles both simple identifier string lookup and indented printing
+        if indent == 0:
+            return identifier_expression.id
+        indent_0 = "\t" * indent
+        return f"{indent_0}{identifier_expression.id}\n"
+
+    def visit_new_expression(self, new_expression: expression_ast.NewExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        id_str = new_expression.id.id if hasattr(new_expression.id, 'id') else new_expression.id
+        return f"{indent_0}New: {id_str}\n"
+
+    def visit_null_expression(self, null_expression: expression_ast.NullExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        return f"{indent_0}Null\n"
+
+    def visit_read_expression(self, read_expression: expression_ast.ReadExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        return f"{indent_0}Read\n"
+
+    def visit_integer_expression(self, integer_expression: expression_ast.IntegerExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        return f"{indent_0}Integer: {integer_expression.value}\n"
+
+    def visit_invocation_expression(self, invocation_expression: expression_ast.InvocationExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        indent_1 = "\t" * (indent + 1)
+        name_str = invocation_expression.name.id if hasattr(invocation_expression.name, 'id') else invocation_expression.name
+        
+        result = f"{indent_0}InvocationExpression: {name_str}\n"
+        result += f"{indent_1}Arguments\n"
+        for arg in invocation_expression.arguments:
+            result += self.visit_expression(arg, indent + 2)
+        return result
+
+    def visit_unary_expression(self, unary_expression: expression_ast.UnaryExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        indent_1 = "\t" * (indent + 1)
+        op_str = unary_expression.operator.value if hasattr(unary_expression.operator, 'value') else str(unary_expression.operator)
+        
+        result = f"{indent_0}UnaryExpression\n"
+        result += f"{indent_1}Operator: {op_str}\n"
+        result += self.visit_expression(unary_expression.operand, indent + 1)
+        return result
+
+    def visit_binary_expression(self, binary_expression: expression_ast.BinaryExpression, indent: int) -> str:
+        indent_0 = "\t" * indent
+        indent_1 = "\t" * (indent + 1)
+        op_str = binary_expression.operator.value if hasattr(binary_expression.operator, 'value') else str(binary_expression.operator)
+        
+        result = f"{indent_0}BinaryExpression\n"
+        result += f"{indent_1}Operator: {op_str}\n"
+        result += f"{indent_1}Left\n"
+        result += self.visit_expression(binary_expression.left, indent + 2)
+        result += f"{indent_1}Right\n"
+        result += self.visit_expression(binary_expression.right, indent + 2)
+        return result
+
+    def visit_lvalue(self, lvalue: lvalue_ast.LValue, indent: int) -> str:
+        if isinstance(lvalue, lvalue_ast.LValueID):
+            return self.visit_lvalue_id(lvalue, indent)
+        elif isinstance(lvalue, lvalue_ast.LValueDot):
+            return self.visit_lvalue_dot(lvalue, indent)
+        return ""
+        
+    def visit_lvalue_dot(self, lvalue_dot: lvalue_ast.LValueDot, indent: int) -> str:
+        indent_0 = "\t" * indent
+        indent_1 = "\t" * (indent + 1)
+        id_str = lvalue_dot.id.id if hasattr(lvalue_dot.id, 'id') else lvalue_dot.id
+        
+        result = f"{indent_0}LValue (LvalueDot)\n"
+        result += self.visit_lvalue(lvalue_dot.left, indent + 1)
+        result += f"{indent_1}Id: {id_str}\n"
+        return result
+
+    def visit_lvalue_id(self, lvalue_id: lvalue_ast.LValueID, indent: int) -> str:
+        indent_0 = "\t" * indent
+        id_str = lvalue_id.id.id if hasattr(lvalue_id.id, 'id') else lvalue_id.id
+        return f"{indent_0}LValue (LvalueId): {id_str}\n"

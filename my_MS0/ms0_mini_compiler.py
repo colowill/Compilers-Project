@@ -21,6 +21,7 @@ def main(argv):
         mini_ast = mini_ast_visitor.visitProgram(program_ctx)
         print("AST created.")
         print(mini_ast)
+        print('\n')
 
         """Pretty print AST.
         Milestone 0: Implement this visitor"""
