@@ -4,8 +4,15 @@ struct A
     bool b;
 };
 
+struct B
+{
+    int j;
+    bool c;
+};
+
 int i, j;
 struct A a;
+struct B b;
 
 fun main() int
 {
