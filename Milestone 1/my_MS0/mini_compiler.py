@@ -33,7 +33,8 @@ def main(argv):
         """
         
         semantic_visitor = StaticSemanticASTVisitor()
-        sv_str = mini_ast.accept(semantic_visitor)
+        num_errors = mini_ast.accept(semantic_visitor)
+        print(num_errors)
 
 
 if __name__ == '__main__':
