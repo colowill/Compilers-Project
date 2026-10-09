@@ -7,37 +7,41 @@ from pretty_print_ast_visitor import PPASTVisitor
 from semantics import StaticSemanticASTVisitor
 
 def main(argv):
-    input_stream = FileStream(argv[1])  # create a stream of characters from the input file (e.g., test.mini)
-    lexer = MiniLexer(input_stream)     # create a lexer for the input stream
+    # Check if --no-pp flag is passed
+    show_pp = "--no-pp" not in argv
+    
+    # Filter out flags to get the source file path
+    args = [arg for arg in argv[1:] if not arg.startswith("--")]
+    if not args:
+        print("Usage: python3 mini_compiler.py [--no-pp] <filename>")
+        return
+
+    input_stream = FileStream(args[0])  # create character stream from input file
+    lexer = MiniLexer(input_stream)
     stream = CommonTokenStream(lexer)   
-    parser = MiniParser(stream)         # create a parser for the stream of tokens
-    program_ctx = parser.program()      # recursively parse, starting with the top-level 'program' construct of Mini.g4
+    parser = MiniParser(stream)
+    program_ctx = parser.program()
 
     if parser.getNumberOfSyntaxErrors() > 0:
         print("Syntax errors.")
     else:
         print("Parse successful.")
-        """Create AST."""
+        
+        # Create AST
         mini_ast_visitor = MiniToASTVisitor()
         mini_ast = mini_ast_visitor.visitProgram(program_ctx)
         print("AST created:")
 
-        """Pretty print AST.
-        Milestone 0: Implement this visitor"""
-        pp_visitor = PPASTVisitor()
-        pp_str = mini_ast.accept(pp_visitor)
-        print(pp_str)
+        # Pretty print AST (only if flag is not set)
+        if show_pp:
+            pp_visitor = PPASTVisitor()
+            pp_str = mini_ast.accept(pp_visitor)
+            print(pp_str)
         
-        """
-        Milestone 1: Semantic Analysis
-        """
-        
+        # Semantic Analysis
         semantic_visitor = StaticSemanticASTVisitor()
         num_errors = mini_ast.accept(semantic_visitor)
         print(num_errors)
 
-
 if __name__ == '__main__':
     main(sys.argv)
-
-

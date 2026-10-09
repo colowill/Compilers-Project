@@ -15,58 +15,55 @@ def run_all_tests():
     failed = 0
 
     for mini_file in sorted(mini_files):
-        print(f"Testing: {mini_file}")
+        print(f"Testing: {mini_file.relative_to(BENCHMARKS_DIR)}")
         
         try:
-            # Executes python3 mini_compiler.py <path/to/file.mini>
+            # Runs compiler with --no-pp to only get semantic analysis error count
             result = subprocess.run(
-                ["python3", "mini_compiler.py", str(mini_file)],
+                ["python3", "mini_compiler.py", "--no-pp", str(mini_file)],
                 capture_output=True,
                 text=True,
                 check=True
             )
             
-            output = result.stdout.strip()
+            stdout_lines = result.stdout.strip().splitlines()
             
-            # Look for an output.expected file in the same directory
-            expected_file = mini_file.parent / "output.expected"
+            if not stdout_lines:
+                print("  [FAIL] No output produced from mini_compiler.py")
+                failed += 1
+                continue
+
+            # The last line printed by mini_compiler.py is the error count
+            last_line = stdout_lines[-1].strip()
             
-            if expected_file.exists():
-                expected_text = expected_file.read_text().strip()
-                
-                # Check if output matches expected benchmark output
-                if actual_matches_expected(output, expected_text):
-                    print("  [PASS] Output matches expected benchmark.")
-                    passed += 1
-                else:
-                    print("  [FAIL] Output mismatch!")
-                    print("--- Actual Output ---")
-                    print(output)
-                    print("--- Expected Output ---")
-                    print(expected_text)
-                    failed += 1
-            else:
-                # If no .expected file exists, check if execution succeeded without crashing
-                print("  [PASS] Executed successfully (No .expected file found).")
+            try:
+                error_count = int(last_line)
+            except ValueError:
+                print(f"  [FAIL] Expected last line to be integer error count, got: '{last_line}'")
+                failed += 1
+                continue
+
+            # Check if this benchmark is a valid program (e.g. standard benchmark folder)
+            # Valid benchmark programs should compile with 0 semantic errors
+            if error_count == 0:
+                print("  [PASS] Clean semantic analysis (0 errors).")
                 passed += 1
+            else:
+                print(f"  [FAIL] Detected {error_count} semantic error(s) in a valid benchmark!")
+                print("  --- Error Log ---")
+                for line in stdout_lines:
+                    if line.startswith("ERROR."):
+                        print(f"    {line}")
+                failed += 1
 
         except subprocess.CalledProcessError as e:
-            print("  [FAIL] Compiler crashed with an unhandled exception!")
-            print(f"  Error Output:\n{e.stderr}")
+            print("  [FAIL] Compiler crashed during execution!")
+            print(f"  stderr:\n{e.stderr}")
             failed += 1
             
         print("-" * 50)
 
     print(f"\nTest Summary: {passed} passed, {failed} failed out of {len(mini_files)} total.")
-
-def actual_matches_expected(actual: str, expected: str) -> bool:
-    """
-    Normalizes whitespace and checks if actual compiler output matches expected output.
-    """
-    actual_lines = [line.strip() for line in actual.splitlines() if line.strip()]
-    expected_lines = [line.strip() for line in expected.splitlines() if line.strip()]
-    
-    return actual_lines == expected_lines
 
 if __name__ == "__main__":
     run_all_tests()
