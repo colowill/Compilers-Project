@@ -1,0 +1,52 @@
+struct A
+{
+    int i;
+    bool b;
+};
+
+struct B
+{
+    int j;
+    bool c;
+};
+
+int i, j;
+struct A a;
+struct B b;
+
+fun helper(int x) int
+{
+    int x;
+    return x;
+}
+
+fun noReturn() int
+{
+    int k;
+    k = 1;
+}
+
+fun voidRet() void
+{
+    return 1;
+}
+
+fun main() int
+{
+    int max, min;
+    max = 3;
+    min = a.i + 3 / 2 - max;
+    max = true;
+    if (max >= 4)
+    {
+        min = 1;
+    }
+    a.z = 1;
+    a = b;
+    min = undefinedVar;
+    min = helper(1, 2);
+    min = nothere(1);
+    delete max;
+    a = null;
+    return 0;
+}

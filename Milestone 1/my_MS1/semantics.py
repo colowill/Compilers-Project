@@ -274,7 +274,7 @@ class StaticSemanticASTVisitor(mini_ast.ASTVisitor):
         """
         type_exp = statement.expression.accept(self)
         if type_exp != ERROR and type_exp not in self.structs:
-            self.report_error(f"delete requires a struct, got {type_exp}", s.linenum)
+            self.report_error(f"delete requires a struct, got {type_exp}", statement.linenum)
 
     def visit_invocation_statement(self, statement):
         """
