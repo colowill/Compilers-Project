@@ -43,7 +43,8 @@ def main(argv):
             scopes = [semantic_visitor.symbols.scope[0]] + semantic_visitor.symbols.history
             for scope in scopes:
                 print(scope["scope"], scope["symbols"])
-            print(f"ERRORS FOUND {num_errors}")
+            
+    print(f"ERRORS FOUND {num_errors}")
  
        
  
