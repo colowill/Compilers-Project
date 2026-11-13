@@ -5,6 +5,16 @@ from pathlib import Path
 BENCHMARKS_DIR = Path("/Users/2headaxe/Desktop/CS Fall 2026/comp520_compilers/Milestone 1/benchmarks")
 COMPILER_DIR = Path(__file__).resolve().parent
 
+def print_errors(output_lines):
+    """
+    Prints every line that starts with "ERROR." indented under the current test.
+    """
+    error_lines = [line for line in output_lines if line.startswith("ERROR.")]
+    if error_lines:
+        print("  --- Error Log ---")
+        for line in error_lines:
+            print(f"    {line}")
+
 def run_all_tests():
     mini_files = list(BENCHMARKS_DIR.rglob("*.mini"))
 
@@ -40,6 +50,9 @@ def run_all_tests():
 
             if error_count is None:
                 print("  [FAIL] No 'ERRORS FOUND <n>' line in the output (syntax error?)")
+                print_errors(stdout_lines)
+                if result.stderr.strip():
+                    print(f"  stderr:\n{result.stderr}")
                 failed += 1
                 print("-" * 50)
                 continue
@@ -50,14 +63,13 @@ def run_all_tests():
                 passed += 1
             else:
                 print(f"  [FAIL] Detected {error_count} semantic error(s) in a valid benchmark!")
-                print("  --- Error Log ---")
-                for line in stdout_lines:
-                    if line.startswith("ERROR."):
-                        print(f"    {line}")
                 failed += 1
+
+            print_errors(stdout_lines)
 
         except subprocess.CalledProcessError as e:
             print("  [FAIL] Compiler crashed during execution!")
+            print_errors((e.stdout or "").splitlines())
             print(f"  stderr:\n{e.stderr}")
             failed += 1
 
