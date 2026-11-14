@@ -47,7 +47,7 @@ class IRVisitor(mini_ast.ASTVisitor):
         func_name = function.name.id
         self.current_func = func_name
         self.instructions.append(f"function {func_name}:")
-        
+
         self.instructions.append("  # Prologue")
         self.instructions.append("  addi sp, sp, -8")
         self.instructions.append("  sw ra, 4(sp)")
@@ -90,14 +90,17 @@ class IRVisitor(mini_ast.ASTVisitor):
 
     def visit_assignment_statement(self, statement):
         src_result = statement.source.accept(self)
-        
+
         if isinstance(statement.target, lvalue_ast.LValueID):
             var_name = statement.target.id.id
             self.instructions.append(f"  sw {src_result}, @{var_name}")
         elif isinstance(statement.target, lvalue_ast.LValueDot):
+            # left evaluates to a plain operand ("@name" or a temp)
+            # that holds the object pointer
             left_result = statement.target.left.accept(self)
             field_name = statement.target.id.id
-            self.instructions.append(f"  store_field {src_result}, {left_result}, {field_name}")
+            self.instructions.append(
+                f"  store_field {src_result}, {left_result}, {field_name}")
         return None
 
     def visit_block_statement(self, block_statement):
@@ -113,11 +116,11 @@ class IRVisitor(mini_ast.ASTVisitor):
         self.instructions.append(f"  beqz {guard_res}, {else_label}")
         statement.then_block.accept(self)
         self.instructions.append(f"  j {end_label}")
-        
+
         self.instructions.append(f"{else_label}:")
         if statement.else_block:
             statement.else_block.accept(self)
-        
+
         self.instructions.append(f"{end_label}:")
         return None
 
@@ -128,7 +131,7 @@ class IRVisitor(mini_ast.ASTVisitor):
         self.instructions.append(f"{loop_label}:")
         guard_res = while_statement.guard.accept(self)
         self.instructions.append(f"  beqz {guard_res}, {end_label}")
-        
+
         while_statement.body.accept(self)
         self.instructions.append(f"  j {loop_label}")
         self.instructions.append(f"{end_label}:")
@@ -210,10 +213,10 @@ class IRVisitor(mini_ast.ASTVisitor):
     def visit_invocation_expression(self, invocation_expression):
         func_name = invocation_expression.name.id
         arg_results = [arg.accept(self) for arg in invocation_expression.arguments]
-        
+
         for i, arg_res in enumerate(arg_results):
             self.instructions.append(f"  mv a{i}, {arg_res}")
-            
+
         self.instructions.append(f"  jal {func_name}")
         t = self.new_temp()
         self.instructions.append(f"  mv {t}, a0")
@@ -222,10 +225,10 @@ class IRVisitor(mini_ast.ASTVisitor):
     def visit_unary_expression(self, unary_expression):
         operand_res = unary_expression.operand.accept(self)
         t = self.new_temp()
-        
+
         if unary_expression.operator == expression_ast.Operator.NOT:
             self.instructions.append(f"  seqz {t}, {operand_res}")
-        else: # MINUS
+        else:  # MINUS
             self.instructions.append(f"  neg {t}, {operand_res}")
         return t
 
@@ -233,7 +236,7 @@ class IRVisitor(mini_ast.ASTVisitor):
         left_result = binary_expression.left.accept(self)
         right_res = binary_expression.right.accept(self)
         t = self.new_temp()
-        
+
         op = binary_expression.operator
         op_map = {
             expression_ast.Operator.PLUS: "add",
@@ -249,7 +252,7 @@ class IRVisitor(mini_ast.ASTVisitor):
             expression_ast.Operator.EQ: "seq",
             expression_ast.Operator.NE: "sne"
         }
-        
+
         inst = op_map.get(op, "add")
         self.instructions.append(f"  {inst} {t}, {left_result}, {right_res}")
         return t
@@ -257,9 +260,16 @@ class IRVisitor(mini_ast.ASTVisitor):
     # --- LValues ---
 
     def visit_lvalue_id(self, lvalue_id):
+        # Operand naming the variable; the transformer loads it
+        # from its stack slot or global.
         return f"@{lvalue_id.id.id}"
 
     def visit_lvalue_dot(self, lvalue_dot):
+        # FIX: previously returned a tuple, which got stringified into the IR.
+        # Now we emit a load of the field and return a temp holding its value
+        # (the pointer to the next struct in a chain like a.b.c).
         left_result = lvalue_dot.left.accept(self)
         field_name = lvalue_dot.id.id
-        return (left_result, field_name)
+        t = self.new_temp()
+        self.instructions.append(f"  load_field {t}, {left_result}, {field_name}")
+        return t

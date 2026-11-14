@@ -8,12 +8,17 @@ class RV32Transformer:
         self.out = []
         self.slots = {}
         self.globals = []
-        self.fields = {} 
+        self.fields = {}
         self.frame = 0
         self.is_main = False
 
     def emit(self, s):
         self.out.append("  " + s)
+
+    def field_offset(self, name):
+        if name not in self.fields:
+            raise ValueError(f"Unknown field '{name}' (known: {list(self.fields)})")
+        return self.fields[name]
 
     def load(self, reg, x):
         if x in self.slots:
@@ -173,13 +178,13 @@ class RV32Transformer:
 
             elif op == "load_field":                  # load_field %t, obj, field
                 self.load("t0", t[2])
-                self.emit(f"lw t2, {self.fields[t[3]]}(t0)")
+                self.emit(f"lw t2, {self.field_offset(t[3])}(t0)")
                 self.store("t2", t[1])
 
             elif op == "store_field":                 # store_field src, obj, field
                 self.load("t0", t[1])
                 self.load("t1", t[2])
-                self.emit(f"sw t0, {self.fields[t[3]]}(t1)")
+                self.emit(f"sw t0, {self.field_offset(t[3])}(t1)")
 
             else:
                 self.emit(f"# UNHANDLED: {l}")
