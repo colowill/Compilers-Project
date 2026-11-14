@@ -95,6 +95,7 @@ class RV32Transformer:
                 self.emit(f"sw s0, {F - 8}(sp)")
                 self.emit(f"addi s0, sp, {F}")
                 if self.is_main:
+                    # ORIGINAL setup restored: store argv[1] pointer
                     self.emit("lw t0, 4(a1)")
                     self.emit("la t1, input_file_ptr")
                     self.emit("sw t0, 0(t1)")
@@ -187,6 +188,8 @@ class RV32Transformer:
 
             elif op == "call":
                 self.emit(f"jal {t[1]}")
+                # restore frame pointer in case the callee clobbered s0
+                self.emit(f"addi s0, sp, {self.frame}")
                 self.store("a0", t[2])
 
             elif op in ("print", "println"):

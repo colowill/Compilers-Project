@@ -231,13 +231,38 @@ class IRVisitor(mini_ast.ASTVisitor):
         else:  # MINUS
             self.instructions.append(f"  neg {t}, {operand_res}")
         return t
-
+    
     def visit_binary_expression(self, binary_expression):
+        op = binary_expression.operator
+
+        if op == expression_ast.Operator.AND:
+            t = self.new_temp()
+            end_label = self.new_label("and_end")
+            left_result = binary_expression.left.accept(self)
+            self.instructions.append(f"  mv {t}, {left_result}")
+            self.instructions.append(f"  beqz {t}, {end_label}")  
+            right_res = binary_expression.right.accept(self)
+            self.instructions.append(f"  mv {t}, {right_res}")
+            self.instructions.append(f"{end_label}:")
+            return t
+
+        if op == expression_ast.Operator.OR:
+            t = self.new_temp()
+            n = self.new_temp()
+            end_label = self.new_label("or_end")
+            left_result = binary_expression.left.accept(self)
+            self.instructions.append(f"  mv {t}, {left_result}")
+            self.instructions.append(f"  seqz {n}, {t}")
+            self.instructions.append(f"  beqz {n}, {end_label}")
+            right_res = binary_expression.right.accept(self)
+            self.instructions.append(f"  mv {t}, {right_res}")
+            self.instructions.append(f"{end_label}:")
+            return t
+
         left_result = binary_expression.left.accept(self)
         right_res = binary_expression.right.accept(self)
         t = self.new_temp()
 
-        op = binary_expression.operator
         op_map = {
             expression_ast.Operator.PLUS: "add",
             expression_ast.Operator.MINUS: "sub",
@@ -247,8 +272,6 @@ class IRVisitor(mini_ast.ASTVisitor):
             expression_ast.Operator.LE: "sle",
             expression_ast.Operator.GT: "sgt",
             expression_ast.Operator.GE: "sge",
-            expression_ast.Operator.AND: "and",
-            expression_ast.Operator.OR: "or",
             expression_ast.Operator.EQ: "seq",
             expression_ast.Operator.NE: "sne"
         }
@@ -257,7 +280,6 @@ class IRVisitor(mini_ast.ASTVisitor):
         self.instructions.append(f"  {inst} {t}, {left_result}, {right_res}")
         return t
 
-    # --- LValues ---
 
     def visit_lvalue_id(self, lvalue_id):
         # Operand naming the variable; the transformer loads it
