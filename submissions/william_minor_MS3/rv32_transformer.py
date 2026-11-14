@@ -28,9 +28,20 @@ class RV32Transformer:
             return int(m.group(1)) - 8
         return None
 
+    @staticmethod
+    def fits(off):
+        """True if off fits in a 12-bit signed immediate."""
+        return -2048 <= off <= 2047
+
     def load(self, reg, x):
         if x in self.slots:
-            self.emit(f"lw {reg}, {self.slots[x]}(s0)")
+            off = self.slots[x]
+            if self.fits(off):
+                self.emit(f"lw {reg}, {off}(s0)")
+            else:
+                self.emit(f"li t3, {off}")
+                self.emit("add t3, s0, t3")
+                self.emit(f"lw {reg}, 0(t3)")
         elif x.startswith("@"):
             self.emit(f"la {reg}, g_{x[1:]}")
             self.emit(f"lw {reg}, 0({reg})")
@@ -41,12 +52,26 @@ class RV32Transformer:
 
     def store(self, reg, x):
         if x in self.slots:
-            self.emit(f"sw {reg}, {self.slots[x]}(s0)")
+            off = self.slots[x]
+            if self.fits(off):
+                self.emit(f"sw {reg}, {off}(s0)")
+            else:
+                self.emit(f"li t3, {off}")
+                self.emit("add t3, s0, t3")
+                self.emit(f"sw {reg}, 0(t3)")
         elif x.startswith("@"):
             self.emit(f"la t1, g_{x[1:]}")
             self.emit(f"sw {reg}, 0(t1)")
         else:
             self.emit(f"mv {x}, {reg}")
+
+    def restore_fp(self):
+        """s0 = sp + frame (works for any frame size)."""
+        if self.fits(self.frame):
+            self.emit(f"addi s0, sp, {self.frame}")
+        else:
+            self.emit(f"li t3, {self.frame}")
+            self.emit("add s0, sp, t3")
 
     def run(self):
         for l in self.lines:
@@ -55,7 +80,6 @@ class RV32Transformer:
             elif l.startswith("field "):
                 self.fields.setdefault(l.split()[1], 4 * len(self.fields))
 
-        # How many extra (a8+) argument words are needed anywhere in the program?
         max_arg = -1
         for l in self.lines:
             m = re.match(r"(?:mv|sw) a(\d+)\b", l)
@@ -84,21 +108,29 @@ class RV32Transformer:
                 names = [x.split()[1] for x in body if x.startswith("alloc ")]
                 names += [x.split()[-1] for x in body if re.match(r"sw a\d", x)]
                 names += list(dict.fromkeys(re.findall(r"%t\d+", "\n".join(body))))
+                names = list(dict.fromkeys(names))
                 self.slots = {n: -(12 + 4 * k) for k, n in enumerate(names)}
                 self.frame = (8 + 4 * len(self.slots) + 15) // 16 * 16
                 self.is_main = name == "main"
 
                 F = self.frame
                 self.out += ["", f"{name}:"]
-                self.emit(f"addi sp, sp, -{F}")
-                self.emit(f"sw ra, {F - 4}(sp)")
-                self.emit(f"sw s0, {F - 8}(sp)")
-                self.emit(f"addi s0, sp, {F}")
                 if self.is_main:
-                    # ORIGINAL setup restored: store argv[1] pointer
+                    
                     self.emit("lw t0, 4(a1)")
                     self.emit("la t1, input_file_ptr")
                     self.emit("sw t0, 0(t1)")
+
+                if self.fits(-F):
+                    self.emit(f"addi sp, sp, {-F}")
+                    self.emit(f"addi t3, sp, {F}")
+                else:
+                    self.emit(f"li t3, {F}")
+                    self.emit("sub sp, sp, t3")
+                    self.emit("add t3, sp, t3")
+                self.emit("sw ra, -4(t3)")
+                self.emit("sw s0, -8(t3)")
+                self.emit("mv s0, t3")
 
             elif op in ("struct", "field", "global", "alloc") \
                     or l.startswith(("#", "addi")) or "(sp)" in l:
@@ -124,22 +156,20 @@ class RV32Transformer:
                 self.store("t0", t[1])
 
             elif op == "sw":
-                idx = self.extra_arg_index(t[1])
-                if idx is not None:
-                    # callee: copy incoming a8+ param out of the shared buffer
+                index = self.extra_arg_index(t[1])
+                if index is not None:
                     self.emit("la t0, stack_args")
-                    self.emit(f"lw t0, {4 * idx}(t0)")
+                    self.emit(f"lw t0, {4 * index}(t0)")
                 else:
                     self.load("t0", t[1])
                 self.store("t0", t[2])
 
             elif op == "mv":
                 self.load("t0", t[2])
-                idx = self.extra_arg_index(t[1])
-                if idx is not None:
-                    # caller: place outgoing a8+ argument into the shared buffer
+                index = self.extra_arg_index(t[1])
+                if index is not None:
                     self.emit("la t1, stack_args")
-                    self.emit(f"sw t0, {4 * idx}(t1)")
+                    self.emit(f"sw t0, {4 * index}(t1)")
                 else:
                     self.store("t0", t[1])
 
@@ -180,16 +210,17 @@ class RV32Transformer:
                 self.emit(f"beqz t0, {t[2]}")
 
             elif op == "j":
-                target = t[1]
-                self.emit(f"j {target}")
+                self.emit(f"j {t[1]}")
 
             elif op == "jal":
                 self.emit(f"jal {t[1]}")
 
             elif op == "call":
+                if t[1] == "read_int":
+                    self.emit("la t0, input_file_ptr")
+                    self.emit("lw a0, 0(t0)")
                 self.emit(f"jal {t[1]}")
-                # restore frame pointer in case the callee clobbered s0
-                self.emit(f"addi s0, sp, {self.frame}")
+                self.restore_fp()
                 self.store("a0", t[2])
 
             elif op in ("print", "println"):
@@ -201,21 +232,21 @@ class RV32Transformer:
                     self.emit("li a0, 11")
                     self.emit("ecall")
 
-            elif op == "new":                         # new %t, Struct
+            elif op == "new":
                 self.emit(f"li a1, {4 * max(1, len(self.fields))}")
                 self.emit("li a0, 9")
                 self.emit("ecall")
                 self.store("a0", t[1])
 
             elif op == "delete":
-                pass                                  # Venus has no free
+                pass
 
-            elif op == "load_field":                  # load_field %t, obj, field
+            elif op == "load_field":
                 self.load("t0", t[2])
                 self.emit(f"lw t2, {self.field_offset(t[3])}(t0)")
                 self.store("t2", t[1])
 
-            elif op == "store_field":                 # store_field src, obj, field
+            elif op == "store_field":
                 self.load("t0", t[1])
                 self.load("t1", t[2])
                 self.emit(f"sw t0, {self.field_offset(t[3])}(t1)")

@@ -408,10 +408,10 @@ class StaticSemanticASTVisitor(mini_ast.ASTVisitor):
         t = exp.operand.accept(self)
         want = "bool" if exp.operator == expression_ast.Operator.NOT else "int"
         if t not in (want, ERROR):
-            self.report_error(f"operator {e.operator.value} requires {want} operand", e.linenum)
+            self.report_error(f"operator {exp.operator.value} requires {want} operand", exp.linenum)
             return ERROR
         return want
-
+    
     def visit_binary_expression(self, exp):
         """
         Checks both operands against the operator and returns the resulting type
