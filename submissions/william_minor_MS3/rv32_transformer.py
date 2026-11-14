@@ -20,6 +20,14 @@ class RV32Transformer:
             raise ValueError(f"Unknown field '{name}' (known: {list(self.fields)})")
         return self.fields[name]
 
+    @staticmethod
+    def extra_arg_index(x):
+        """If x is a8, a9, ... return its index into stack_args (0, 1, ...), else None."""
+        m = re.fullmatch(r"a(\d+)", x)
+        if m and int(m.group(1)) >= 8:
+            return int(m.group(1)) - 8
+        return None
+
     def load(self, reg, x):
         if x in self.slots:
             self.emit(f"lw {reg}, {self.slots[x]}(s0)")
@@ -47,9 +55,20 @@ class RV32Transformer:
             elif l.startswith("field "):
                 self.fields.setdefault(l.split()[1], 4 * len(self.fields))
 
+        # How many extra (a8+) argument words are needed anywhere in the program?
+        max_arg = -1
+        for l in self.lines:
+            m = re.match(r"(?:mv|sw) a(\d+)\b", l)
+            if m:
+                max_arg = max(max_arg, int(m.group(1)))
+        n_extra = max(0, max_arg - 7)
+
         self.out += [".globl main", ".import berkeley_utils.s", ".import read_int.s", "",
                      ".data", "input_file_ptr: .word 0"]
         self.out += [f"g_{g}: .word 0" for g in self.globals]
+        if n_extra:
+            self.out.append("stack_args: .word 0")
+            self.out += [".word 0"] * (n_extra - 1)
         self.out += ["", ".text"]
 
         for i, l in enumerate(self.lines):
@@ -104,12 +123,24 @@ class RV32Transformer:
                 self.store("t0", t[1])
 
             elif op == "sw":
-                self.load("t0", t[1])
+                idx = self.extra_arg_index(t[1])
+                if idx is not None:
+                    # callee: copy incoming a8+ param out of the shared buffer
+                    self.emit("la t0, stack_args")
+                    self.emit(f"lw t0, {4 * idx}(t0)")
+                else:
+                    self.load("t0", t[1])
                 self.store("t0", t[2])
 
             elif op == "mv":
                 self.load("t0", t[2])
-                self.store("t0", t[1])
+                idx = self.extra_arg_index(t[1])
+                if idx is not None:
+                    # caller: place outgoing a8+ argument into the shared buffer
+                    self.emit("la t1, stack_args")
+                    self.emit(f"sw t0, {4 * idx}(t1)")
+                else:
+                    self.store("t0", t[1])
 
             elif op in ("add", "sub", "mul", "div", "and", "or", "slt",
                         "sgt", "sle", "sge", "seq", "sne"):
